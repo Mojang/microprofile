@@ -1397,6 +1397,8 @@ void MicroProfileOnThreadExit()
 		{
 			S.Frames[i].nLogStart[nLogIndex] = 0;
 		}
+
+		MicroProfileSetThreadLog(nullptr);
 	}
 }
 
