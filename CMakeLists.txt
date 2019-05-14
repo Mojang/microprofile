@@ -9,9 +9,5 @@ set(CMAKE_POSITION_INDEPENDENT_CODE on)
 add_library(microprofile STATIC ${microprofile_source})
 set_property(TARGET microprofile PROPERTY CXX_STANDARD 11)
 target_compile_definitions(microprofile PRIVATE MICROPROFILE_USE_CONFIG=1)
-target_include_directories(microprofile 
-	PUBLIC 
-		${CMAKE_CURRENT_SOURCE_DIR} 
-	PRIVATE
-		"../../src-deps/microprofile_config/include"
-)
+target_include_directories(microprofile PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(microprofile PRIVATE profiler)

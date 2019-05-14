@@ -23,7 +23,7 @@
 // ***********************************************************************
 
 #ifdef MICROPROFILE_USE_CONFIG
-#include "microprofile_config/microprofile.config.h"
+#include "profiler/microprofile.config.h"
 #endif
 
 #ifndef MICROPROFILE_ENABLED
