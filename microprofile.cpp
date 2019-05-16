@@ -47,6 +47,10 @@
 
 #define MICROPROFILE_LOG_FENCE ((uint64_t)0)
 
+#ifndef MICROPROFILE_AUTO_INIT_THREADS
+#define MICROPROFILE_AUTO_INIT_THREADS 1
+#endif
+
 static_assert(0 == (MICROPROFILE_MAX_GROUPS%32), "MICROPROFILE_MAX_GROUPS must be divisible by 32");
 
 enum EMicroProfileTokenSpecial
@@ -1587,11 +1591,13 @@ void MicroProfileSetThreadLog(MicroProfileThreadLog* pLog)
 MicroProfileThreadLog* MicroProfileGetThreadLog2()
 {
 	MicroProfileThreadLog* pLog = MicroProfileGetThreadLog();
+#if MICROPROFILE_AUTO_INIT_THREADS
 	if (!pLog)
 	{
 		MicroProfileInitThreadLog();
 		pLog = MicroProfileGetThreadLog();
 	}
+#endif
 	return pLog;
 }
 
@@ -2540,30 +2546,41 @@ void MicroProfileLeaveInternal(MicroProfileToken nToken_, uint64_t nTickStart)
 		{
 			uint64_t nTick = MP_TICK();
 			MicroProfileThreadLog* pLog = MicroProfileGetThreadLog2();
-			MicroProfileLogPutLeave(nToken_, nTick, pLog);
+			if (pLog) {
+				MicroProfileLogPutLeave(nToken_, nTick, pLog);
+			}
 		}
 	}
 }
 
-void MicroProfileFence() {
+void MicroProfileFence()
+{
 	MicroProfileThreadLog* pLog = MicroProfileGetThreadLog2();
-	MicroProfileLogPutFence(pLog);
+	if (pLog) {
+		MicroProfileLogPutFence(pLog);
+	}
 }
 
 void MicroProfileEnter(MicroProfileToken nToken)
 {
 	MicroProfileThreadLog* pLog = MicroProfileGetThreadLog2();
-	MP_ASSERT(pLog->nStackScope < MICROPROFILE_STACK_MAX); // if youre hitting this assert you probably have mismatched _ENTER/_LEAVE markers
-	MicroProfileScopeStateC* pScopeState = &pLog->ScopeState[pLog->nStackScope++];
-	pScopeState->Token = nToken;
-	pScopeState->nTick = MicroProfileEnterInternal(nToken);
+	if (pLog)
+	{
+		MP_ASSERT(pLog->nStackScope < MICROPROFILE_STACK_MAX); // if youre hitting this assert you probably have mismatched _ENTER/_LEAVE markers
+		MicroProfileScopeStateC* pScopeState = &pLog->ScopeState[pLog->nStackScope++];
+		pScopeState->Token = nToken;
+		pScopeState->nTick = MicroProfileEnterInternal(nToken);
+	}
 }
 void MicroProfileLeave()
 {
 	MicroProfileThreadLog* pLog = MicroProfileGetThreadLog2();
-	MP_ASSERT(pLog->nStackScope > 0); // if youre hitting this assert you probably have mismatched _ENTER/_LEAVE markers
-	MicroProfileScopeStateC* pScopeState = &pLog->ScopeState[--pLog->nStackScope];
-	MicroProfileLeaveInternal(pScopeState->Token, pScopeState->nTick);
+	if (pLog)
+	{
+		MP_ASSERT(pLog->nStackScope > 0); // if youre hitting this assert you probably have mismatched _ENTER/_LEAVE markers
+		MicroProfileScopeStateC* pScopeState = &pLog->ScopeState[--pLog->nStackScope];
+		MicroProfileLeaveInternal(pScopeState->Token, pScopeState->nTick);
+	}
 }
 
 
@@ -2657,7 +2674,11 @@ uint64_t MicroProfileGpuEnterInternal(MicroProfileThreadLogGpu* pGpuLog, MicroPr
 	{
 		if(!MicroProfileGetThreadLog())
 		{
+#if MICROPROFILE_AUTO_INIT_THREADS
 			MicroProfileInitThreadLog();
+#else
+			return 0;
+#endif
 		}
 
 		MP_ASSERT(pGpuLog->pContext != (void*)-1); // must be called between GpuBegin/GpuEnd		
@@ -2678,7 +2699,11 @@ void MicroProfileGpuLeaveInternal(MicroProfileThreadLogGpu* pGpuLog, MicroProfil
 	{
 		if(!MicroProfileGetThreadLog())
 		{
+#if MICROPROFILE_AUTO_INIT_THREADS
 			MicroProfileInitThreadLog();
+#else
+			return;
+#endif
 		}
 
 		MP_ASSERT(pGpuLog->pContext != (void*)-1); // must be called between GpuBegin/GpuEnd
