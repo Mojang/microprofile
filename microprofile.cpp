@@ -5088,6 +5088,9 @@ void MicroProfileSetNonBlocking(MpSocket Socket, int NonBlocking)
 #ifdef _WIN32
 	u_long nonBlocking = NonBlocking ? 1 : 0; 
 	ioctlsocket(Socket, FIONBIO, &nonBlocking);
+#elif defined(MICROPROFILE_SOCKET_NONBLOCK_OPTNAME)
+	int on = NonBlocking ? 1 : 0;
+	setsockopt(Socket, SOL_SOCKET, MICROPROFILE_SOCKET_NONBLOCK_OPTNAME, (void*)&on, sizeof(on));
 #else
 	int Options = fcntl(Socket, F_GETFL);
 	if(NonBlocking)
