@@ -152,7 +152,50 @@ enum
 #define MICROPROFILE_DEBUG 0
 #endif
 
+#ifndef MICROPROFILE_FOPEN //redefine all if overriding
+#define MICROPROFILE_FOPEN(fileName, mode) MicroProfileFOpen(fileName, mode)
+#define MICROPROFILE_FCLOSE(file) MicroProfileFClose(file)
+#define MICROPROFILE_FWRITE(buffer, elementSize, elementCount, file) MicroProfileFWrite(buffer, elementSize, elementCount, file)
+#define MICROPROFILE_FREAD(buffer, elementSize, elementCount, file) MicroProfileFRead(buffer, elementSize, elementCount, file)
+#define MICROPROFILE_FPUTC(character, file) MicroProfileFPutC(character, file)
+#define MICROPROFILE_FSEEK(file, offset, origin) MicroProfileFSeek(file, offset, origin)
+#define MICROPROFILE_FTELL(file) MicroProfileFTell(file)
+#endif
 
+void* MicroProfileFOpen(const char* fileName, const char* mode)
+{
+	return fopen(fileName, mode);
+}
+
+int MicroProfileFClose(void* file)
+{
+	return fclose(static_cast<FILE*>(file));
+}
+
+size_t MicroProfileFWrite(const void *buffer, size_t elementSize, size_t elementCount, void* file)
+{
+	return fwrite(buffer, elementSize, elementCount, static_cast<FILE*>(file));
+}
+
+size_t MicroProfileFRead(void *buffer, size_t elementSize, size_t elementCount, void* file)
+{
+	return fread(buffer, elementSize, elementCount, static_cast<FILE*>(file));
+}
+
+int MicroProfileFPutC(int character, void* file)
+{
+	return fputc(character, static_cast<FILE*>(file));
+}
+
+int MicroProfileFSeek(void* file, long offset, int origin)
+{
+	return fseek(static_cast<FILE*>(file), offset, origin);
+}
+
+long MicroProfileFTell(void* file)
+{
+	return ftell(static_cast<FILE*>(file));
+}
 
 typedef uint64_t MicroProfileLogEntry;
 
@@ -4912,7 +4955,7 @@ void MicroProfileDumpHtml(MicroProfileWriteCallback CB, void* Handle, uint64_t n
 
 void MicroProfileWriteFile(void* Handle, size_t nSize, const char* pData)
 {
-	fwrite(pData, nSize, 1, (FILE*)Handle);
+	MICROPROFILE_FWRITE(pData, nSize, 1, Handle);
 }
 
 void MicroProfileDumpToFile()
@@ -4920,20 +4963,20 @@ void MicroProfileDumpToFile()
 	std::lock_guard<std::recursive_mutex> Lock(MicroProfileMutex());
 	if(S.nDumpFileNextFrame&1)
 	{
-		FILE* F = fopen(S.HtmlDumpPath, "w");
+		void* F = MICROPROFILE_FOPEN(S.HtmlDumpPath, "w");
 		if(F)
 		{
 			MicroProfileDumpHtml(MicroProfileWriteFile, F, MICROPROFILE_WEBSERVER_MAXFRAMES, S.HtmlDumpPath);
-			fclose(F);
+			MICROPROFILE_FCLOSE(F);
 		}
 	}
 	if(S.nDumpFileNextFrame&2)
 	{
-		FILE* F = fopen(S.CsvDumpPath, "w");
+		void* F = MICROPROFILE_FOPEN(S.CsvDumpPath, "w");
 		if(F)
 		{
 			MicroProfileDumpCsv(MicroProfileWriteFile, F);
-			fclose(F);
+			MICROPROFILE_FCLOSE(F);
 		}
 	}
 	S.nDumpFileNextFrame = 0;
@@ -6039,28 +6082,28 @@ void MicroProfileParseSettings(const char* pFileName, T CB)
 	std::lock_guard<std::recursive_mutex> Lock(MicroProfileGetMutex());
 
 
-	FILE* F = fopen(pFileName, "rb");
+	void* F = MICROPROFILE_FOPEN(pFileName, "rb");
 	if(!F)
 	{
 		return;
 	}
 	long nFileSize = 0;
-	fseek(F, 0, SEEK_END);
-	nFileSize = ftell(F);
+	MICROPROFILE_FSEEK(F, 0, SEEK_END);
+	nFileSize = MICROPROFILE_FTELL(F);
 	if(nFileSize > (32<<10))
 	{
 		uprintf("trying to load a >32kb settings file on the stack. this should never happen!\n");
 		MP_BREAK();
 	}
 	char* pFile = (char*)alloca(nFileSize+1);
-	fseek(F, 0, SEEK_SET);
-	if(1 != fread(pFile, nFileSize, 1, F))
+	MICROPROFILE_FSEEK(F, 0, SEEK_SET);
+	if(1 != MICROPROFILE_FREAD(pFile, nFileSize, 1, F))
 	{
 		uprintf("failed to read settings file\n");
-		fclose(F);
+		MICROPROFILE_FCLOSE(F);
 		return;
 	}
-	fclose(F);
+	MICROPROFILE_FCLOSE(F);
 	pFile[nFileSize] = '\0';
 
 	char* pPos = pFile;
@@ -6169,7 +6212,7 @@ bool MicroProfileSavePresets(const char* pSettingsName, const char* pJsonSetting
 {
 	std::lock_guard<std::recursive_mutex> Lock(MicroProfileGetMutex());
 
-	FILE* F = fopen(MICROPROFILE_SETTINGS_FILE_TEMP, "w");
+	void* F = MICROPROFILE_FOPEN(MICROPROFILE_SETTINGS_FILE_TEMP, "w");
 	if(!F)
 	{
 		return false;
@@ -6180,30 +6223,30 @@ bool MicroProfileSavePresets(const char* pSettingsName, const char* pJsonSetting
 	MicroProfileParseSettings(MICROPROFILE_SETTINGS_FILE,
 		[&](const char* pName, uint32_t nNameSize, const char* pJson, uint32_t nJsonSize) -> bool
 		{
-			fwrite(pName, nNameSize, 1, F);
-			fputc(' ', F);
+			MICROPROFILE_FWRITE(pName, nNameSize, 1, F);
+			MICROPROFILE_FPUTC(' ', F);
 			if(0 != MP_STRCASECMP(pSettingsName, pName))
 			{
-				fwrite(pJson, nJsonSize, 1, F);
+				MICROPROFILE_FWRITE(pJson, nJsonSize, 1, F);
 			}
 			else
 			{
 				bWritten = true;
-				fwrite(pJsonSettings, strlen(pJsonSettings), 1, F);
+				MICROPROFILE_FWRITE(pJsonSettings, strlen(pJsonSettings), 1, F);
 			}
-			fputc('\n', F);
+			MICROPROFILE_FPUTC('\n', F);
 			return true;
 		}
 	);
 	if(!bWritten)
 	{
-		fwrite(pSettingsName, strlen(pSettingsName), 1, F);
-		fputc(' ', F);
-		fwrite(pJsonSettings, strlen(pJsonSettings), 1, F);
-		fputc('\n', F);
+		MICROPROFILE_FWRITE(pSettingsName, strlen(pSettingsName), 1, F);
+		MICROPROFILE_FPUTC(' ', F);
+		MICROPROFILE_FWRITE(pJsonSettings, strlen(pJsonSettings), 1, F);
+		MICROPROFILE_FPUTC('\n', F);
 	}
-	fflush(F);
-	fclose(F);
+
+	MICROPROFILE_FCLOSE(F);
 #ifdef MICROPROFILE_MOVE_FILE
 	MICROPROFILE_MOVE_FILE(MICROPROFILE_SETTINGS_FILE_TEMP, MICROPROFILE_SETTINGS_FILE);
 #elif defined(_WIN32)
@@ -7923,7 +7966,7 @@ uint32_t MicroProfileGetThreadInfoArray(MicroProfileThreadInfo** pThreadArray)
 #include <sys/time.h>
 void* MicroProfileTraceThread(void* unused)
 {
-	FILE* pFile = fopen("mypipe", "r");
+	void* pFile = MICROPROFILE_FOPEN("mypipe", "r");
 	if(!pFile)
 	{
 		uprintf("CONTEXT SWITCH FAILED TO OPEN FILE: make sure to run dtrace script\n");
@@ -12745,7 +12788,7 @@ void MicroProfileSymbolUpdateModuleList()
 {
 	//So, this was the only way I could find to do this..
 	//Is this seriously how they want this to be done?
-	FILE* F = fopen("/proc/self/maps", "r");
+	void* F = MICROPROFILE_FOPEN("/proc/self/maps", "r");
 	char* line = 0;
 	size_t len;
 	ssize_t read;
@@ -12773,7 +12816,7 @@ void MicroProfileSymbolUpdateModuleList()
 		}
 
 	}
-	fclose(F);
+	MICROPROFILE_FCLOSE(F);
 	MicroProfileSymbolMergeExecutableRegions();
 }
 
