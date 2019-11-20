@@ -2237,9 +2237,15 @@ inline void MicroProfileLogPutLeave(MicroProfileToken nToken_, uint64_t nTick, M
 	uint32_t nStackPut = --(pLog->nStackPut);
 	uint32_t nGet = pLog->nGet.load(std::memory_order_acquire);
 	MP_ASSERT(nStackPut < MICROPROFILE_STACK_MAX);
-	MP_ASSERT(nNextPos != nGet); //should never happen
-	pLog->Log[nPos] = LE;
-	pLog->nPut.store(nNextPos, std::memory_order_release);
+	if (nNextPos != nGet) {
+		pLog->Log[nPos] = LE;
+		pLog->nPut.store(nNextPos, std::memory_order_release);
+	}
+#if MICROPROFILE_DEBUG
+	else {
+		printf("!!! WARNING: log full. Unable to insert leave\n");
+	}
+#endif
 }
 
 inline void MicroProfileLogPutFence(MicroProfileThreadLog* pLog) {
