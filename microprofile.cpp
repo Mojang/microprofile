@@ -2232,14 +2232,14 @@ inline void MicroProfileLogPutLeave(MicroProfileToken nToken_, uint64_t nTick, M
 	MP_ASSERT(pLog != 0); //this assert is hit if MicroProfileOnCreateThread is not called
 	MP_ASSERT(pLog->nActive);
 	uint64_t LE = MicroProfileMakeLogIndex(MP_LOG_LEAVE, nToken_, nTick);
-	uint32_t nPos = pLog->nPut.load(std::memory_order_relaxed);
+	uint32_t nPos = pLog->nPut.load(std::memory_order_seq_cst);
 	uint32_t nNextPos = (nPos + 1) % MICROPROFILE_BUFFER_SIZE;
 	uint32_t nStackPut = --(pLog->nStackPut);
-	uint32_t nGet = pLog->nGet.load(std::memory_order_acquire);
+	uint32_t nGet = pLog->nGet.load(std::memory_order_seq_cst);
 	MP_ASSERT(nStackPut < MICROPROFILE_STACK_MAX);
 	MP_ASSERT(nNextPos != nGet); //should never happen
 	pLog->Log[nPos] = LE;
-	pLog->nPut.store(nNextPos, std::memory_order_release);
+	pLog->nPut.store(nNextPos, std::memory_order_seq_cst);
 }
 
 inline void MicroProfileLogPutFence(MicroProfileThreadLog* pLog) {
