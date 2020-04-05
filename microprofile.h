@@ -626,7 +626,7 @@ MICROPROFILE_API void MicroProfileSetCurrentNodeVulkan(uint32_t nNode);
 
 
 MICROPROFILE_API void MicroProfileDumpFile(const char* pHtml, const char* pCsv, float fCpuSpike, float fGpuSpike);
-MICROPROFILE_API void MicroProfileDumpFileImmediately(const char* pHtml, const char* pCsv, void* pGpuContext);
+MICROPROFILE_API void MicroProfileDumpFileImmediately(const char* pHtml, const char* pCsv, void* pGpuContext, uint32_t nNumFrames = MICROPROFILE_WEBSERVER_MAXFRAMES);
 MICROPROFILE_API uint32_t MicroProfileWebServerPort();
 
 #if MICROPROFILE_GPU_TIMERS

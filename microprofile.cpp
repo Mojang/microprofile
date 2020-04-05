@@ -790,6 +790,7 @@ struct MicroProfile
 	uint32_t nDumpFileNextFrame;
 	uint32_t nDumpFileCountDown;
 	uint32_t nDumpSpikeMask;
+	uint32_t nNumFramesInDumpFile;
 	uint32_t nAutoClearFrames;
 
 	float 	fDumpCpuSpike;
@@ -3893,7 +3894,7 @@ uint32_t MicroProfileWebServerPort()
 	return S.nWebServerPort;
 }
 
-void MicroProfileDumpFileImmediately(const char* pHtml, const char* pCsv, void* pGpuContext)
+void MicroProfileDumpFileImmediately(const char* pHtml, const char* pCsv, void* pGpuContext, uint32_t nNumFrames)
 {
 	for(uint32_t i = 0; i < 2; ++i)
 	{
@@ -3930,6 +3931,7 @@ void MicroProfileDumpFileImmediately(const char* pHtml, const char* pCsv, void* 
 	S.nDumpFileNextFrame = nDumpMask;
 	S.nDumpSpikeMask = 0;
 	S.nDumpFileCountDown = 0;
+	S.nNumFramesInDumpFile = nNumFrames;
 
 	MicroProfileDumpToFile();
 }
@@ -4923,7 +4925,7 @@ void MicroProfileDumpToFile()
 		FILE* F = fopen(S.HtmlDumpPath, "w");
 		if(F)
 		{
-			MicroProfileDumpHtml(MicroProfileWriteFile, F, MICROPROFILE_WEBSERVER_MAXFRAMES, S.HtmlDumpPath);
+			MicroProfileDumpHtml(MicroProfileWriteFile, F, S.nNumFramesInDumpFile, S.HtmlDumpPath);
 			fclose(F);
 		}
 	}
