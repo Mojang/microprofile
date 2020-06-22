@@ -26,9 +26,8 @@
 #include "profiler/microprofile.config.h"
 #endif
 
-#ifndef MICROPROFILE_ENABLED
-#define MICROPROFILE_ENABLED 1
-#endif
+#undef MICROPROFILE_ENABLED
+#define MICROPROFILE_ENABLED 0
 
 #ifndef MICROPROFILE_DYNAMIC_INSTRUMENT
 #if (defined(__APPLE__) && defined(__MACH__)) || (defined(_WIN32) && defined(_M_X64)) || (defined(__unix__) && defined(__x86_64__))
