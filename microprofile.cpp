@@ -21,6 +21,8 @@
 #include <inttypes.h>
 #endif
 
+#include "Core/Debug/DebugUtils.h"
+
 #define MICROPROFILE_MAX_COUNTERS 512
 #define MICROPROFILE_MAX_COUNTER_NAME_CHARS (MICROPROFILE_MAX_COUNTERS*16)
 #define MICROPROFILE_MAX_GROUP_INTS (MICROPROFILE_MAX_GROUPS/32)
@@ -5580,6 +5582,7 @@ void MicroProfileSleep(uint32_t nMs)
 bool MicroProfileSocketSend2(MpSocket Connection, const void* pMessage, int nLen);
 void* MicroProfileSocketSenderThread(void*)
 {
+	DebugUtils::SET_THREAD_NAME("MicroProfile Socket Sender");
 	MicroProfileOnThreadCreate("MicroProfileSocketSenderThread");
 	while(!S.nMicroProfileShutdown)
 	{
