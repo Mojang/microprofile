@@ -3886,7 +3886,7 @@ extern const char* g_MicroProfileHtmlLive_end[];
 extern size_t g_MicroProfileHtmlLive_end_sizes[];
 extern size_t g_MicroProfileHtmlLive_end_count;
 
-typedef void MicroProfileWriteCallback(void* Handle, size_t size, const char* pData);
+using MicroProfileWriteCallback = std::function< void(void* Handle, size_t size, const char* pData) >;
 
 uint32_t MicroProfileWebServerPort()
 {
@@ -4910,30 +4910,79 @@ void MicroProfileDumpHtml(MicroProfileWriteCallback CB, void* Handle, uint64_t n
 	S.nPauseTicks = 0;
 }
 
-void MicroProfileWriteFile(void* Handle, size_t nSize, const char* pData)
-{
-	fwrite(pData, nSize, 1, (FILE*)Handle);
-}
+class MicroProfileDeferredFileWriter {
+	static const size_t bufferSize = 10240;
+
+	FILE* mFile;
+	std::vector<char> mData;
+	MicroProfileWriteCallback mWriteCallback;
+
+	void writeToInternalData(size_t size, const char* data) {
+		const size_t currentSize = mData.size();
+		mData.resize(currentSize + size);
+
+		char* dest = &mData[currentSize];
+		memcpy(dest, data, size);
+	}
+
+	void writeInternalToDisk() {
+		if (mData.size() > 0) {
+			fwrite(mData.data(), mData.size(), 1, (FILE*)mFile);
+			mData.clear();
+		}
+	}
+
+	void writeData(size_t size, const char* data) {
+		// for big data, split it up over multiple calls
+		if (size > bufferSize) {
+			for (size_t offset = 0; offset < size; offset += bufferSize) {
+				size_t currentSize = std::min(size - offset, bufferSize);
+				writeData(currentSize, data + offset);
+			}
+			return;
+		}
+
+		if (size + mData.size() >= bufferSize) {
+			writeInternalToDisk();
+		}
+		writeToInternalData(size, data);
+	}
+
+public:
+	MicroProfileDeferredFileWriter(const char* path) {
+		mFile = fopen(path, "w");
+		mData.reserve(bufferSize);
+		mWriteCallback = [this](void*, size_t size, const char* data) {
+			writeData(size, data);
+		};
+	}
+
+	FILE* getHandle() const { return mFile; }
+	MicroProfileWriteCallback getWriteCallback() const { return mWriteCallback; }
+
+	~MicroProfileDeferredFileWriter() {
+		writeInternalToDisk();
+		fclose(mFile);
+	}
+};
 
 void MicroProfileDumpToFile()
 {
 	std::lock_guard<std::recursive_mutex> Lock(MicroProfileMutex());
 	if(S.nDumpFileNextFrame&1)
 	{
-		FILE* F = fopen(S.HtmlDumpPath, "w");
-		if(F)
+		MicroProfileDeferredFileWriter deferredFileWriter(S.HtmlDumpPath);
+		if(deferredFileWriter.getHandle())
 		{
-			MicroProfileDumpHtml(MicroProfileWriteFile, F, MICROPROFILE_WEBSERVER_MAXFRAMES, S.HtmlDumpPath);
-			fclose(F);
+			MicroProfileDumpHtml(deferredFileWriter.getWriteCallback(), deferredFileWriter.getHandle(), MICROPROFILE_WEBSERVER_MAXFRAMES, S.HtmlDumpPath);
 		}
 	}
 	if(S.nDumpFileNextFrame&2)
 	{
-		FILE* F = fopen(S.CsvDumpPath, "w");
-		if(F)
+		MicroProfileDeferredFileWriter deferredFileWriter(S.HtmlDumpPath);
+		if(deferredFileWriter.getHandle())
 		{
-			MicroProfileDumpCsv(MicroProfileWriteFile, F);
-			fclose(F);
+			MicroProfileDumpCsv(deferredFileWriter.getWriteCallback(), deferredFileWriter.getHandle());
 		}
 	}
 	S.nDumpFileNextFrame = 0;
