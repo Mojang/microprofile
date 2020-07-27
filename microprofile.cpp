@@ -4936,7 +4936,8 @@ class MicroProfileDeferredFileWriter {
 		// for big data, split it up over multiple calls
 		if (size > bufferSize) {
 			for (size_t offset = 0; offset < size; offset += bufferSize) {
-				size_t currentSize = std::min(size - offset, bufferSize);
+				const size_t leftToWrite = size - offset;
+				const size_t currentSize = leftToWrite < bufferSize ? leftToWrite : bufferSize;
 				writeData(currentSize, data + offset);
 			}
 			return;
