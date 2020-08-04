@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <vector>
+#include <functional>
 
 #if defined(_WIN32) && _MSC_VER == 1700
 #define PRIx64 "llx"
