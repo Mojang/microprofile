@@ -10,9 +10,7 @@ add_library(microprofile STATIC ${microprofile_source})
 set_property(TARGET microprofile PROPERTY CXX_STANDARD 11)
 target_compile_definitions(microprofile PRIVATE MICROPROFILE_USE_CONFIG=1)
 
-# This setting results in a crash during compilation
-# on Android x86/x86_64 architectures
-if(ANDROID_ABI MATCHES "arm")
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   target_compile_options(microprofile
   PRIVATE
     -fvisibility=hidden
