@@ -1199,6 +1199,19 @@ void MicroProfileThreadStart(MicroProfileThread* pThread, MicroProfileThreadFunc
     int r  = pthread_attr_init(&Attr);
     MP_ASSERT(r == 0);
     pthread_create(pThread, &Attr, Func, 0);
+
+	// BBI-NOTE: (jilitzky) Allow the microprofiler to roam all cores on Switch so that it doesn't get starved by the main thread on core 0
+#if defined(MICROPROFILER_NX)
+	cpu_set_t cpuSet;
+	CPU_ZERO(&cpuSet);
+	constexpr size_t numCores = 3;
+	for (size_t i = 0; i < numCores; i++)
+	{
+		CPU_SET(i, &cpuSet);
+	}
+	r = pthread_setaffinity_np(*pThread, sizeof(cpu_set_t), &cpuSet);
+	MP_ASSERT(r == 0);
+#endif
 }
 void MicroProfileThreadJoin(MicroProfileThread* pThread)
 {
@@ -6047,6 +6060,11 @@ typedef bool (*MicroProfileOnSettings)(const char* pName, uint32_t nNameLen, con
 template<typename T>
 void MicroProfileParseSettings(const char* pFileName, T CB)
 {
+	// BBI-TODO: (jilitzky 3) If we want to support parsing settings on Switch, we'll have to read them from the "host" drive
+#if defined(MICROPROFILE_NX)
+	return;
+#endif
+
 	std::lock_guard<std::recursive_mutex> Lock(MicroProfileGetMutex());
 
 
