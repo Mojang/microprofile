@@ -1201,10 +1201,10 @@ void MicroProfileThreadStart(MicroProfileThread* pThread, MicroProfileThreadFunc
     pthread_create(pThread, &Attr, Func, 0);
 
 	// BBI-NOTE: (jilitzky) Allow the microprofiler to roam all cores on Switch so that it doesn't get starved by the main thread on core 0
-#if defined(MICROPROFILER_NX)
+#if defined(MICROPROFILE_NX)
 	cpu_set_t cpuSet;
 	CPU_ZERO(&cpuSet);
-	constexpr size_t numCores = 3;
+	const size_t numCores = std::thread::hardware_concurrency();
 	for (size_t i = 0; i < numCores; i++)
 	{
 		CPU_SET(i, &cpuSet);
