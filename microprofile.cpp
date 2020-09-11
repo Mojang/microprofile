@@ -1242,6 +1242,11 @@ inline void MicroProfileThreadJoin(MicroProfileThread* pThread)
 
 #if MICROPROFILE_WEBSERVER
 
+#ifdef MICROPROFILE_NX
+#include <arpa/inet.h>
+#include <sys/select.h>
+#endif
+
 #ifdef _WIN32
 #define MP_INVALID_SOCKET(f) (f == INVALID_SOCKET)
 #else
@@ -1283,7 +1288,7 @@ void MicroProfileDumpToFile();
 #define S g_MicroProfile
 
 MicroProfile g_MicroProfile;
-#ifdef MICROPROFILE_IOS
+#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
 // iOS doesn't support __thread
 static pthread_key_t g_MicroProfileThreadLogKey;
 static pthread_once_t g_MicroProfileThreadLogKeyOnce = PTHREAD_ONCE_INIT;
@@ -1568,7 +1573,7 @@ void MicroProfileStopAutoFlip()
 }
 
 
-#ifdef MICROPROFILE_IOS
+#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
 inline MicroProfileThreadLog* MicroProfileGetThreadLog()
 {
 	pthread_once(&g_MicroProfileThreadLogKeyOnce, MicroProfileCreateThreadLogKey);
