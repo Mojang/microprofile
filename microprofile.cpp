@@ -1283,7 +1283,7 @@ void MicroProfileDumpToFile();
 #define S g_MicroProfile
 
 MicroProfile g_MicroProfile;
-#ifdef MICROPROFILE_IOS
+#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
 // iOS doesn't support __thread
 static pthread_key_t g_MicroProfileThreadLogKey;
 static pthread_once_t g_MicroProfileThreadLogKeyOnce = PTHREAD_ONCE_INIT;
@@ -1568,7 +1568,7 @@ void MicroProfileStopAutoFlip()
 }
 
 
-#ifdef MICROPROFILE_IOS
+#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
 inline MicroProfileThreadLog* MicroProfileGetThreadLog()
 {
 	pthread_once(&g_MicroProfileThreadLogKeyOnce, MicroProfileCreateThreadLogKey);
@@ -4978,6 +4978,19 @@ void MicroProfileWriteSocket(void* Handle, size_t nSize, const char* pData)
 	}
 }
 
+void MicroProfileCloseSocket(MpSocket Socket)
+{
+#ifdef _WIN32
+	closesocket(Socket);
+#elif defined(MICROPROFILE_NX)
+	// BBI-NOTE: (jilitzky) It's critical to use the fully qualified "nn::socket::Close" call here since using "close" would result in undefined behavior
+	// See the "POSIX Network Socket Functions" document in Nintendo's development portal for details
+	nn::socket::Close(Socket);
+#else
+	close(Socket);
+#endif
+}
+
 #if MICROPROFILE_MINIZ
 #ifndef MICROPROFILE_COMPRESS_BUFFER_SIZE
 #define MICROPROFILE_COMPRESS_BUFFER_SIZE (256<<10)
@@ -5171,11 +5184,9 @@ void MicroProfileWebServerJoin()
 void MicroProfileWebServerStop()
 {
 	MP_ASSERT(S.WebSocketThreadJoined);
+	MicroProfileCloseSocket(S.ListenerSocket);
 #ifdef _WIN32
-	closesocket(S.ListenerSocket);
 	WSACleanup();
-#else
-	close(S.ListenerSocket);
 #endif
 }
 enum MicroProfileGetCommand
@@ -6948,11 +6959,7 @@ void MicroProfileWebSocketFrame()
             {
                 r = recv(S.WebSockets[i], tmp, sizeof(tmp), 0);
             }
-            #ifdef _WIN32
-			closesocket(S.WebSockets[i]);
-			#else
-			close(S.WebSockets[i]);
-			#endif
+			MicroProfileCloseSocket(S.WebSockets[i]);
 
 			--S.nNumWebSockets;
 			S.WebSockets[i] = S.WebSockets[S.nNumWebSockets];
@@ -7302,11 +7309,7 @@ bool MicroProfileWebServerUpdate()
 				}
 			}
 		}
-#ifdef _WIN32
-		closesocket(Connection);
-#else
-		close(Connection);
-#endif
+		MicroProfileCloseSocket(Connection);
 	}
 	return bServed;
 }
