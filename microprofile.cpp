@@ -4978,6 +4978,17 @@ void MicroProfileWriteSocket(void* Handle, size_t nSize, const char* pData)
 	}
 }
 
+void MicroProfileCloseSocket(MpSocket Socket)
+{
+#if defined(MICROPROFILE_CLOSE_SOCKET_OVERRIDE)
+	MICROPROFILE_CLOSE_SOCKET_OVERRIDE(Socket);
+#elif defined(_WIN32)
+	closesocket(Socket);
+#else
+	close(Socket);
+#endif
+}
+
 #if MICROPROFILE_MINIZ
 #ifndef MICROPROFILE_COMPRESS_BUFFER_SIZE
 #define MICROPROFILE_COMPRESS_BUFFER_SIZE (256<<10)
@@ -5171,11 +5182,9 @@ void MicroProfileWebServerJoin()
 void MicroProfileWebServerStop()
 {
 	MP_ASSERT(S.WebSocketThreadJoined);
+	MicroProfileCloseSocket(S.ListenerSocket);
 #ifdef _WIN32
-	closesocket(S.ListenerSocket);
 	WSACleanup();
-#else
-	close(S.ListenerSocket);
 #endif
 }
 enum MicroProfileGetCommand
@@ -6948,11 +6957,7 @@ void MicroProfileWebSocketFrame()
             {
                 r = recv(S.WebSockets[i], tmp, sizeof(tmp), 0);
             }
-            #ifdef _WIN32
-			closesocket(S.WebSockets[i]);
-			#else
-			close(S.WebSockets[i]);
-			#endif
+			MicroProfileCloseSocket(S.WebSockets[i]);
 
 			--S.nNumWebSockets;
 			S.WebSockets[i] = S.WebSockets[S.nNumWebSockets];
@@ -7302,11 +7307,7 @@ bool MicroProfileWebServerUpdate()
 				}
 			}
 		}
-#ifdef _WIN32
-		closesocket(Connection);
-#else
-		close(Connection);
-#endif
+		MicroProfileCloseSocket(Connection);
 	}
 	return bServed;
 }
