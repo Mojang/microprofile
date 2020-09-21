@@ -1283,7 +1283,7 @@ void MicroProfileDumpToFile();
 #define S g_MicroProfile
 
 MicroProfile g_MicroProfile;
-#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
+#ifdef MICROPROFILE_IOS
 // iOS doesn't support __thread
 static pthread_key_t g_MicroProfileThreadLogKey;
 static pthread_once_t g_MicroProfileThreadLogKeyOnce = PTHREAD_ONCE_INIT;
@@ -1568,7 +1568,7 @@ void MicroProfileStopAutoFlip()
 }
 
 
-#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
+#ifdef MICROPROFILE_IOS
 inline MicroProfileThreadLog* MicroProfileGetThreadLog()
 {
 	pthread_once(&g_MicroProfileThreadLogKeyOnce, MicroProfileCreateThreadLogKey);
@@ -4980,12 +4980,10 @@ void MicroProfileWriteSocket(void* Handle, size_t nSize, const char* pData)
 
 void MicroProfileCloseSocket(MpSocket Socket)
 {
-#ifdef _WIN32
+#if defined(MICROPROFILE_CLOSE_SOCKET_OVERRIDE)
+	MICROPROFILE_CLOSE_SOCKET_OVERRIDE(Socket);
+#elif defined(_WIN32)
 	closesocket(Socket);
-#elif defined(MICROPROFILE_NX)
-	// BBI-NOTE: (jilitzky) It's critical to use the fully qualified "nn::socket::Close" call here since using "close" would result in undefined behavior
-	// See the "POSIX Network Socket Functions" document in Nintendo's development portal for details
-	nn::socket::Close(Socket);
 #else
 	close(Socket);
 #endif
