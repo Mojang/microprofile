@@ -1283,7 +1283,7 @@ void MicroProfileDumpToFile();
 #define S g_MicroProfile
 
 MicroProfile g_MicroProfile;
-#ifdef MICROPROFILE_IOS
+#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
 // iOS doesn't support __thread
 static pthread_key_t g_MicroProfileThreadLogKey;
 static pthread_once_t g_MicroProfileThreadLogKeyOnce = PTHREAD_ONCE_INIT;
@@ -1568,7 +1568,7 @@ void MicroProfileStopAutoFlip()
 }
 
 
-#ifdef MICROPROFILE_IOS
+#if defined(MICROPROFILE_IOS) || defined(MICROPROFILE_NX)
 inline MicroProfileThreadLog* MicroProfileGetThreadLog()
 {
 	pthread_once(&g_MicroProfileThreadLogKeyOnce, MicroProfileCreateThreadLogKey);
@@ -6056,8 +6056,12 @@ typedef bool (*MicroProfileOnSettings)(const char* pName, uint32_t nNameLen, con
 template<typename T>
 void MicroProfileParseSettings(const char* pFileName, T CB)
 {
-	std::lock_guard<std::recursive_mutex> Lock(MicroProfileGetMutex());
+	// BBI-NOTE: (jilitzky) Avoid parsing settings on Switch since the path requested isn't supported by the file system
+#if defined(MICROPROFILE_NX)
+	return;
+#endif
 
+	std::lock_guard<std::recursive_mutex> Lock(MicroProfileGetMutex());
 
 	FILE* F = fopen(pFileName, "rb");
 	if(!F)
