@@ -4927,7 +4927,7 @@ class MicroProfileDeferredFileWriter {
 	}
 
 	void writeInternalToDisk() {
-		if (mData.size() > 0) {
+		if (mData.size() > 0 && mFile != nullptr) {
 			fwrite(mData.data(), mData.size(), 1, (FILE*)mFile);
 			mData.clear();
 		}
@@ -4963,8 +4963,10 @@ public:
 	MicroProfileWriteCallback getWriteCallback() const { return mWriteCallback; }
 
 	~MicroProfileDeferredFileWriter() {
-		writeInternalToDisk();
-		fclose(mFile);
+		if (mFile != nullptr) {
+			writeInternalToDisk();
+			fclose(mFile);
+		}
 	}
 };
 
