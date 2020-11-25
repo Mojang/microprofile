@@ -1206,7 +1206,7 @@ void MicroProfileThreadStart(MicroProfileThread* pThread, MicroProfileThreadFunc
 #if defined(MICROPROFILE_NX)
 	// BBI-NOTE: (manderson) Run thread on all cores and set appropriate priority.
     Bedrock::Threading::ThreadUtil::setThreadPriority(*pThread, Bedrock::Threading::OSThreadPriority::Normal);
-    Bedrock::Threading::ThreadUtil::setCoreAffinity(*pThread, -1, 0b111);
+    Bedrock::Threading::ThreadUtil::setCoreAffinity(*pThread, DEFAULT_IDEAL_CORE, DEFAULT_DESIRED_CORE_MASK);
 #endif
 }
 void MicroProfileThreadJoin(MicroProfileThread* pThread)
