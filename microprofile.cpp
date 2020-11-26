@@ -22,6 +22,9 @@
 #endif
 
 #include "Core/Debug/DebugUtils.h"
+#if defined(MICROPROFILE_NX)
+#include "Platform/Threading/ThreadUtil.h"
+#endif
 
 #define MICROPROFILE_MAX_COUNTERS 512
 #define MICROPROFILE_MAX_COUNTER_NAME_CHARS (MICROPROFILE_MAX_COUNTERS*16)
@@ -1199,6 +1202,12 @@ void MicroProfileThreadStart(MicroProfileThread* pThread, MicroProfileThreadFunc
     int r  = pthread_attr_init(&Attr);
     MP_ASSERT(r == 0);
     pthread_create(pThread, &Attr, Func, 0);
+
+#if defined(MICROPROFILE_NX)
+	// BBI-NOTE: (manderson) Run thread on all cores and set appropriate priority.
+    Bedrock::Threading::ThreadUtil::setThreadPriority(*pThread, Bedrock::Threading::OSThreadPriority::Normal);
+    Bedrock::Threading::ThreadUtil::setCoreAffinity(*pThread, Bedrock::Threading::OSDefaultIdealCore, Bedrock::Threading::OSDefaultCoreMask);
+#endif
 }
 void MicroProfileThreadJoin(MicroProfileThread* pThread)
 {
