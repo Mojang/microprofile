@@ -422,7 +422,7 @@ struct MicroProfileFunctionQuery;
 struct MicroProfileTimer
 {
 	uint64_t nTicks;
-	uint32_t nCount;
+	uint32_t asdfnCount;
 };
 
 struct MicroProfileCategory
@@ -3143,7 +3143,7 @@ void MicroProfileFlip_CB(void* pContext, MicroProfileOnFreeze FreezeCB)
 				for(uint32_t i = 0; i < S.nTotalTimers; ++i)
 				{
 					S.Frame[i].nTicks = 0;
-					S.Frame[i].nCount = 0;
+					S.Frame[i].asdfnCount = 0;
 					S.FrameExclusive[i] = 0;
 					S.FrameLargest[i] = 0; // Mojang Added
 					S.FrameSmallest[i] = ~0ULL; // Mojang Added
@@ -3266,7 +3266,7 @@ void MicroProfileFlip_CB(void* pContext, MicroProfileOnFreeze FreezeCB)
 									uint64_t nTicksExclusive = (nTicks-nChildTicks);
 									S.Frame[nTimerIndex].nTicks += nTicks - nNegative;
 									S.FrameExclusive[nTimerIndex] += nTicksExclusive;
-									S.Frame[nTimerIndex].nCount += 1;
+									S.Frame[nTimerIndex].asdfnCount += 1;
 
 									S.FrameLargest[nTimerIndex] = MicroProfileMax(S.FrameLargest[nTimerIndex], static_cast<uint64_t>(nTicks)); // Mojang Added
 									S.FrameSmallest[nTimerIndex] = MicroProfileMin(S.FrameSmallest[nTimerIndex], static_cast<uint64_t>(nTicks)); // Mojang Added
@@ -3314,7 +3314,7 @@ void MicroProfileFlip_CB(void* pContext, MicroProfileOnFreeze FreezeCB)
 						uint64_t nTicksExclusive = (nTicks-nChildTicks);
 						S.Frame[nTimerIndex].nTicks += nTicks - nNegative;
 						S.FrameExclusive[nTimerIndex] += nTicksExclusive;
-						S.Frame[nTimerIndex].nCount += 1;
+						//todo; S.Frame[nTimerIndex].asdfnCount += 1; // if something is on the stack for multiple frames, does this count it multiple times?
 
 						MP_ASSERT(nGroup < MICROPROFILE_MAX_GROUPS);
 						pFrameGroupThread[nGroup].nTicks += nTicks - nNegative;
@@ -3361,7 +3361,7 @@ void MicroProfileFlip_CB(void* pContext, MicroProfileOnFreeze FreezeCB)
 				for(uint32_t i = 0; i < S.nTotalTimers; ++i)
 				{
 					S.AccumTimers[i].nTicks += S.Frame[i].nTicks;				
-					S.AccumTimers[i].nCount += S.Frame[i].nCount;
+					S.AccumTimers[i].asdfnCount += S.Frame[i].asdfnCount;
 					S.AccumMaxTimers[i] = MicroProfileMax(S.AccumMaxTimers[i], S.Frame[i].nTicks);
 					S.AccumMinTimers[i] = MicroProfileMin(S.AccumMinTimers[i], S.Frame[i].nTicks);
 					S.AccumTimersExclusive[i] += S.FrameExclusive[i];				
@@ -3613,7 +3613,7 @@ void MicroProfileCalcAllTimers(float* pTimers, float* pAverage, float* pMax, flo
 		uint32_t nTimer = i;
 		uint32_t nIdx = i * 2;
 		uint32_t nAggregateFrames = S.nAggregateFrames ? S.nAggregateFrames : 1;
-		uint32_t nAggregateCount = S.Aggregate[nTimer].nCount ? S.Aggregate[nTimer].nCount : 1;
+		uint32_t nAggregateCount = S.Aggregate[nTimer].asdfnCount ? S.Aggregate[nTimer].asdfnCount : 1;
 		float fToPrc = S.fRcpReferenceTime;
 		float fMs = fToMs * (S.Frame[nTimer].nTicks);
 		float fPrc = MicroProfileMin(fMs * fToPrc, 1.f);
@@ -3664,6 +3664,23 @@ float MicroProfileGetTime(const char* pGroup, const char* pName)
 	uint32_t nGroupIndex = MicroProfileGetGroupIndex(nToken);
 	float fToMs = MicroProfileTickToMsMultiplier(S.GroupInfo[nGroupIndex].Type == MicroProfileTokenTypeGpu ? MicroProfileTicksPerSecondGpu() : MicroProfileTicksPerSecondCpu());
 	return S.Frame[nTimerIndex].nTicks * fToMs;
+}
+
+bool MicroProfileGetTimeAndCount(const char* pGroup, const char* pName, float& timeMS, uint32_t& count)
+{
+	MicroProfileToken nToken = MicroProfileFindToken(pGroup, pName);
+	if (nToken == MICROPROFILE_INVALID_TOKEN)
+	{
+		timeMS = 0.f;
+		count = 0;
+		return false;
+	}
+	uint32_t nTimerIndex = MicroProfileGetTimerIndex(nToken);
+	uint32_t nGroupIndex = MicroProfileGetGroupIndex(nToken);
+	float fToMs = MicroProfileTickToMsMultiplier(S.GroupInfo[nGroupIndex].Type == MicroProfileTokenTypeGpu ? MicroProfileTicksPerSecondGpu() : MicroProfileTicksPerSecondCpu());
+	timeMS = S.Frame[nTimerIndex].nTicks * fToMs;
+	count = S.Frame[nTimerIndex].asdfnCount;
+	return true;
 }
 
 int MicroProfilePlatformMarkersGetEnabled()
@@ -4257,7 +4274,7 @@ void MicroProfileDumpHtml(MicroProfileWriteCallback CB, void* Handle, uint64_t n
 			pAverageExclusive[nIdx],
 			pMaxExclusive[nIdx],
 			pCallAverage[nIdx],
-			S.Aggregate[i].nCount,
+			S.Aggregate[i].asdfnCount,
 			pTotal[nIdx],
 			i,i,i);
 
@@ -6859,7 +6876,7 @@ void MicroProfileWebSocketSendFrame(MpSocket Connection)
 				float fTickToMs = TI.Type == MicroProfileTokenTypeGpu ? fTickToMsGpu : fTickToMsCpu;
 				uint32_t id = MicroProfileWebSocketIdPack(TYPE_TIMER, nTimer);
 				fTime = fTickToMs * S.Frame[nTimer].nTicks;
-				float fCount = (float)S.Frame[nTimer].nCount;
+				float fCount = (float)S.Frame[nTimer].asdfnCount;
 				float fTimeExcl = fTickToMs * S.FrameExclusive[nTimer];
 				// uprintf("%4.2f, ", fTimeExcl);
 				if(!MicroProfileGroupActive(TI.nGroupIndex))
@@ -13491,7 +13508,7 @@ uint32_t MicroProfileGetFrameCount(MicroProfileToken token) {
 	}
 
 	uint32_t nTimerIndex = MicroProfileGetTimerIndex(token);
-	return S.Frame[nTimerIndex].nCount;
+	return S.Frame[nTimerIndex].asdfnCount;
 }
 // ------ End Mojang Added Function Definitions ------
 
