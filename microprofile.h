@@ -128,6 +128,7 @@ typedef uint16_t MicroProfileGroupId;
 #define MICROPROFILE_COUNTER_LOCAL_UPDATE_SET_ATOMIC(var) do{}while(0)
 
 #define MicroProfileGetTime(group, name) 0.f
+#define MicroProfileGetTimeAndCount(group, name, time, count) false
 #define MicroProfileOnThreadCreate(foo) do{}while(0)
 #define MicroProfileOnThreadExit() do{}while(0)
 #define MicroProfileFlip(pContext) do{}while(0)
@@ -522,6 +523,7 @@ MICROPROFILE_API int MicroProfileEnabled();
 MICROPROFILE_API void MicroProfileForceEnableGroup(const char* pGroup, MicroProfileTokenType Type);
 MICROPROFILE_API void MicroProfileForceDisableGroup(const char* pGroup, MicroProfileTokenType Type);
 MICROPROFILE_API float MicroProfileGetTime(const char* pGroup, const char* pName);
+MICROPROFILE_API bool MicroProfileGetTimeAndCount(const char* pGroup, const char* pName, float& timeMS, uint32_t& count);
 MICROPROFILE_API int MicroProfilePlatformMarkersGetEnabled(); //enable platform markers. disables microprofile markers
 MICROPROFILE_API void MicroProfilePlatformMarkersSetEnabled(int bEnabled); //enable platform markers. disables microprofile markers
 MICROPROFILE_API void MicroProfileContextSwitchSearch(uint32_t* pContextSwitchStart, uint32_t* pContextSwitchEnd, uint64_t nBaseTicksCpu, uint64_t nBaseTicksEndCpu);
