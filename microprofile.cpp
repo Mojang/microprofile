@@ -3314,7 +3314,8 @@ void MicroProfileFlip_CB(void* pContext, MicroProfileOnFreeze FreezeCB)
 						uint64_t nTicksExclusive = (nTicks-nChildTicks);
 						S.Frame[nTimerIndex].nTicks += nTicks - nNegative;
 						S.FrameExclusive[nTimerIndex] += nTicksExclusive;
-						S.Frame[nTimerIndex].nCount += 1;
+						// Mojang Added - disable this next line to avoid counting timings extra times when they overlap a flip() call
+						// S.Frame[nTimerIndex].nCount += 1;
 
 						MP_ASSERT(nGroup < MICROPROFILE_MAX_GROUPS);
 						pFrameGroupThread[nGroup].nTicks += nTicks - nNegative;
@@ -3664,6 +3665,23 @@ float MicroProfileGetTime(const char* pGroup, const char* pName)
 	uint32_t nGroupIndex = MicroProfileGetGroupIndex(nToken);
 	float fToMs = MicroProfileTickToMsMultiplier(S.GroupInfo[nGroupIndex].Type == MicroProfileTokenTypeGpu ? MicroProfileTicksPerSecondGpu() : MicroProfileTicksPerSecondCpu());
 	return S.Frame[nTimerIndex].nTicks * fToMs;
+}
+
+bool MicroProfileGetTimeAndCount(const char* pGroup, const char* pName, float& timeMS, uint32_t& count)
+{
+	MicroProfileToken nToken = MicroProfileFindToken(pGroup, pName);
+	if (nToken == MICROPROFILE_INVALID_TOKEN)
+	{
+		timeMS = 0.f;
+		count = 0;
+		return false;
+	}
+	uint32_t nTimerIndex = MicroProfileGetTimerIndex(nToken);
+	uint32_t nGroupIndex = MicroProfileGetGroupIndex(nToken);
+	float fToMs = MicroProfileTickToMsMultiplier(S.GroupInfo[nGroupIndex].Type == MicroProfileTokenTypeGpu ? MicroProfileTicksPerSecondGpu() : MicroProfileTicksPerSecondCpu());
+	timeMS = S.Frame[nTimerIndex].nTicks * fToMs;
+	count = S.Frame[nTimerIndex].nCount;
+	return true;
 }
 
 int MicroProfilePlatformMarkersGetEnabled()
