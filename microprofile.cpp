@@ -2476,7 +2476,6 @@ int64_t MicroProfileLocalCounterSetAtomic(MicroProfileToken nToken, int64_t nCou
 	return pCounter->exchange(nCount);
 }
 
-
 void MicroProfileCounterAdd(MicroProfileToken nToken, int64_t nCount)
 {
 	MP_ASSERT(nToken < S.nNumCounters);
@@ -13513,6 +13512,71 @@ uint32_t MicroProfileGetFrameCount(MicroProfileToken token) {
 	uint32_t nTimerIndex = MicroProfileGetTimerIndex(token);
 	return S.Frame[nTimerIndex].nCount;
 }
+
+uint32_t MicroProfileGetGroupCount() {
+	return S.nGroupCount;
+}
+
+const char* MicroProfileGetGroupName(uint32_t groupIndex) {
+	if (groupIndex < S.nGroupCount) {
+		return S.GroupInfo[groupIndex].pName;
+	}
+
+	return nullptr;
+}
+
+bool MicroProfileGetGroupTimeAndCount(uint32_t groupIndex, float& timeMS, float& exclusiveTimeMS, uint32_t& count) {
+	if (groupIndex < S.nGroupCount) {
+		const MicroProfile::GroupTime& groupTime = S.FrameGroup[groupIndex];
+		count = groupTime.nCount;
+
+		float fToMs = MicroProfileTickToMsMultiplier(S.GroupInfo[groupIndex].Type == MicroProfileTokenTypeGpu ? MicroProfileTicksPerSecondGpu() : MicroProfileTicksPerSecondCpu());
+		timeMS = groupTime.nTicks * fToMs;
+		exclusiveTimeMS = groupTime.nTicksExclusive * fToMs;
+		return true;
+	}
+
+	timeMS = 0.0f;
+	exclusiveTimeMS = 0.0f;
+	count = 0;
+	return false;
+}
+
+MICROPROFILE_API uint32_t MicroProfileGetThreadCount() {
+	return S.nNumLogs;
+}
+
+const char* MicroProfileGetNameOfThread(uint32_t threadIndex) {
+	if (threadIndex < S.nNumLogs) {
+		MicroProfileThreadLog* pLog = S.Pool[threadIndex];
+		if (pLog != nullptr && pLog->nActive == 1) {
+			return pLog->ThreadName;
+		}
+	}
+
+	return nullptr;
+}
+
+bool MicroProfileGetThreadGroupTimeAndCount(uint32_t threadIndex, uint32_t groupIndex, float& timeMS, float& exclusiveTimeMS, uint32_t& count) {
+	if (threadIndex < S.nNumLogs && groupIndex < S.nGroupCount) {
+		if ((S.FrameGroupThreadValid[threadIndex / 32] & (1 << (threadIndex % 32))) != 0) {
+			const MicroProfile::GroupTime* pFrameGroupThread = S.FrameGroupThread[threadIndex];
+			const MicroProfile::GroupTime& groupTime = pFrameGroupThread[groupIndex];
+			count = groupTime.nCount;
+
+			float fToMs = MicroProfileTickToMsMultiplier(S.GroupInfo[groupIndex].Type == MicroProfileTokenTypeGpu ? MicroProfileTicksPerSecondGpu() : MicroProfileTicksPerSecondCpu());
+			timeMS = groupTime.nTicks * fToMs;
+			exclusiveTimeMS = groupTime.nTicksExclusive * fToMs;
+			return true;
+		}
+	}
+
+	timeMS = 0.0f;
+	exclusiveTimeMS = 0.0f;
+	count = 0;
+	return false;
+}
+
 // ------ End Mojang Added Function Definitions ------
 
 

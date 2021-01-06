@@ -176,6 +176,13 @@ typedef uint16_t MicroProfileGroupId;
 #define MicroProfileGetFrameLargest(token) 0.0f // Mojang Added
 #define MicroProfileGetFrameSmallest(token) 0.0f // Mojang Added
 #define MicroProfileGetFrameCount(token) 0 // Mojang Added
+#define MicroProfileGetGroupCount() 0 // Mojang Added
+#define MicroProfileGetGroupName(groupIndex) nullptr // Mojang Added
+#define MicroProfileGetGroupTimeAndCount(groupIndex, timeMS, exclusiveTimeMS, count) false // Mojang Added
+#define MicroProfileGetThreadCount() 0 // Mojang Added
+#define MicroProfileGetNameOfThread(threadIndex) nullptr // Mojang Added
+#define MicroProfileGetThreadGroupTimeAndCount(threadIndex, groupIndex, timeMS, exclusiveTimeMS, count) false // Mojang Added
+
 #else
 
 #include <stdint.h>
@@ -560,6 +567,13 @@ MICROPROFILE_API float MicroProfileGetFrameTime(MicroProfileToken token); // Moj
 MICROPROFILE_API float MicroProfileGetFrameLargest(MicroProfileToken token); // Mojang Added
 MICROPROFILE_API float MicroProfileGetFrameSmallest(MicroProfileToken token); // Mojang Added
 MICROPROFILE_API uint32_t MicroProfileGetFrameCount(MicroProfileToken token); // Mojang Added
+
+MICROPROFILE_API uint32_t MicroProfileGetGroupCount(); // Mojang Added
+MICROPROFILE_API const char* MicroProfileGetGroupName(uint32_t groupIndex); // Mojang Added
+MICROPROFILE_API bool MicroProfileGetGroupTimeAndCount(uint32_t groupIndex, float& timeMS, float& exclusiveTimeMS, uint32_t& count); // Mojang Added
+MICROPROFILE_API uint32_t MicroProfileGetThreadCount(); // Mojang Added
+MICROPROFILE_API const char* MicroProfileGetNameOfThread(uint32_t threadIndex); // Mojang Added
+MICROPROFILE_API bool MicroProfileGetThreadGroupTimeAndCount(uint32_t threadIndex, uint32_t groupIndex, float& timeMS, float& exclusiveTimeMS, uint32_t& count); // Mojang Added
 
 MICROPROFILE_API float MicroProfileTickToMsMultiplierCpu();
 MICROPROFILE_API float MicroProfileTickToMsMultiplierGpu();
