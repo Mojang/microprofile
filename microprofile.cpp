@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <vector>
+#include <functional>
 
 #if defined(_WIN32) && _MSC_VER == 1700
 #define PRIx64 "llx"
@@ -22,9 +23,7 @@
 #endif
 
 #include "Core/Debug/DebugUtils.h"
-#if defined(MICROPROFILE_NX)
 #include "Platform/Threading/ThreadUtil.h"
-#endif
 
 #define MICROPROFILE_MAX_COUNTERS 512
 #define MICROPROFILE_MAX_COUNTER_NAME_CHARS (MICROPROFILE_MAX_COUNTERS*16)
@@ -1202,12 +1201,6 @@ void MicroProfileThreadStart(MicroProfileThread* pThread, MicroProfileThreadFunc
     int r  = pthread_attr_init(&Attr);
     MP_ASSERT(r == 0);
     pthread_create(pThread, &Attr, Func, 0);
-
-#if defined(MICROPROFILE_NX)
-	// BBI-NOTE: (manderson) Run thread on all cores and set appropriate priority.
-    Bedrock::Threading::ThreadUtil::setThreadPriority(*pThread, Bedrock::Threading::OSThreadPriority::Normal);
-    Bedrock::Threading::ThreadUtil::setCoreAffinity(*pThread, Bedrock::Threading::OSDefaultIdealCore, Bedrock::Threading::OSDefaultCoreMask);
-#endif
 }
 void MicroProfileThreadJoin(MicroProfileThread* pThread)
 {
@@ -3901,7 +3894,7 @@ extern const char* g_MicroProfileHtmlLive_end[];
 extern size_t g_MicroProfileHtmlLive_end_sizes[];
 extern size_t g_MicroProfileHtmlLive_end_count;
 
-typedef void MicroProfileWriteCallback(void* Handle, size_t size, const char* pData);
+using MicroProfileWriteCallback = std::function< void(void* Handle, size_t size, const char* pData) >;
 
 uint32_t MicroProfileWebServerPort()
 {
@@ -4929,30 +4922,80 @@ void MicroProfileDumpHtml(MicroProfileWriteCallback CB, void* Handle, uint64_t n
 	S.nPauseTicks = 0;
 }
 
-void MicroProfileWriteFile(void* Handle, size_t nSize, const char* pData)
-{
-	fwrite(pData, nSize, 1, (FILE*)Handle);
-}
+class MicroProfileDeferredFileWriter {
+	static const size_t bufferSize = 10240;
+
+	FILE* mFile;
+	std::vector<char> mData;
+	MicroProfileWriteCallback mWriteCallback;
+
+	void writeToInternalData(size_t size, const char* data) {
+		const size_t currentSize = mData.size();
+		mData.resize(currentSize + size);
+
+		char* dest = &mData[currentSize];
+		memcpy(dest, data, size);
+	}
+
+	void writeInternalToDisk() {
+		if (mData.size() > 0) {
+			fwrite(mData.data(), mData.size(), 1, (FILE*)mFile);
+			mData.clear();
+		}
+	}
+
+	void writeData(size_t size, const char* data) {
+		// for big data, split it up over multiple calls
+		if (size > bufferSize) {
+			for (size_t offset = 0; offset < size; offset += bufferSize) {
+				const size_t leftToWrite = size - offset;
+				const size_t currentSize = leftToWrite < bufferSize ? leftToWrite : bufferSize;
+				writeData(currentSize, data + offset);
+			}
+			return;
+		}
+
+		if (size + mData.size() >= bufferSize) {
+			writeInternalToDisk();
+		}
+		writeToInternalData(size, data);
+	}
+
+public:
+	MicroProfileDeferredFileWriter(const char* path) {
+		mFile = fopen(path, "w");
+		mData.reserve(bufferSize);
+		mWriteCallback = [this](void*, size_t size, const char* data) {
+			writeData(size, data);
+		};
+	}
+
+	FILE* getHandle() const { return mFile; }
+	MicroProfileWriteCallback getWriteCallback() const { return mWriteCallback; }
+
+	~MicroProfileDeferredFileWriter() {
+		writeInternalToDisk();
+		fclose(mFile);
+	}
+};
 
 void MicroProfileDumpToFile()
 {
 	std::lock_guard<std::recursive_mutex> Lock(MicroProfileMutex());
 	if(S.nDumpFileNextFrame&1)
 	{
-		FILE* F = fopen(S.HtmlDumpPath, "w");
-		if(F)
+		MicroProfileDeferredFileWriter deferredFileWriter(S.HtmlDumpPath);
+		if(deferredFileWriter.getHandle())
 		{
-			MicroProfileDumpHtml(MicroProfileWriteFile, F, S.nNumFramesInDumpFile, S.HtmlDumpPath);
-			fclose(F);
+			MicroProfileDumpHtml(deferredFileWriter.getWriteCallback(), deferredFileWriter.getHandle(), S.nNumFramesInDumpFile, S.HtmlDumpPath);
 		}
 	}
 	if(S.nDumpFileNextFrame&2)
 	{
-		FILE* F = fopen(S.CsvDumpPath, "w");
-		if(F)
+		MicroProfileDeferredFileWriter deferredFileWriter(S.HtmlDumpPath);
+		if(deferredFileWriter.getHandle())
 		{
-			MicroProfileDumpCsv(MicroProfileWriteFile, F);
-			fclose(F);
+			MicroProfileDumpCsv(deferredFileWriter.getWriteCallback(), deferredFileWriter.getHandle());
 		}
 	}
 	S.nDumpFileNextFrame = 0;
@@ -5601,6 +5644,8 @@ bool MicroProfileSocketSend2(MpSocket Connection, const void* pMessage, int nLen
 void* MicroProfileSocketSenderThread(void*)
 {
 	DebugUtils::SET_THREAD_NAME("MicroProfile Socket Sender");
+    Bedrock::Threading::ThreadUtil::setCurrentThreadPriority(Bedrock::Threading::OSThreadPriority::Normal);
+    Bedrock::Threading::ThreadUtil::setCurrentThreadCoreAffinity(Bedrock::Threading::OSDefaultIdealCore, Bedrock::Threading::OSDefaultCoreMask);
 	MicroProfileOnThreadCreate("MicroProfileSocketSenderThread");
 	while(!S.nMicroProfileShutdown)
 	{
