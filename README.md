@@ -81,7 +81,7 @@ The live view can be used to enable different microprofile groups, using the Con
 Press the capture button to generate a capture. By default the last 30 frames are capture.
 The capture itself is a fully contained webpage, that can be saved and shared for further reference.
 
-There are a few ways the webserver can be invoked
+There are a few ways the webserver can be invoked:
 
 * host:1338/100 (capture 100 frames)
 * host:1338/p/foo (start live view, load preset foo)
@@ -171,7 +171,7 @@ MicroProfile uses a few large allocations.
     * A state buffer for loading/saving settings.
 * one small allocation for receiving packets from the sender
 
-To change how microprofile allocates memory, define these macros when compiling microprofile implementation
+To change how microprofile allocates memory, define these macros when compiling microprofile implementation:
 
 * MICROPROFILE_ALLOC
 * MICROPROFILE_REALLOC
@@ -193,4 +193,4 @@ There are a few minor known issues & Limitations:
 Microprofile supports the two major consoles - Search for 'microprofile' in the closed platform forums.
 
 # License
-Licensed using unlicense.org
+Licensed using unlicense.org.
