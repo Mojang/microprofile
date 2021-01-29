@@ -4992,7 +4992,7 @@ void MicroProfileDumpToFile()
 	}
 	if(S.nDumpFileNextFrame&2)
 	{
-		MicroProfileDeferredFileWriter deferredFileWriter(S.HtmlDumpPath);
+		MicroProfileDeferredFileWriter deferredFileWriter(S.CsvDumpPath);
 		if(deferredFileWriter.getHandle())
 		{
 			MicroProfileDumpCsv(deferredFileWriter.getWriteCallback(), deferredFileWriter.getHandle());
