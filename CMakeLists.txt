@@ -1,4 +1,5 @@
 option(MP_HIDE_SYMBOLS "Toggle to hide LTO symbols" OFF)
+message("++++ MP_HIDE_SYMBOLS = ${MP_HIDE_SYMBOLS}")
 
 set(microprofile_source
   ${CMAKE_CURRENT_SOURCE_DIR}/microprofile.cpp
@@ -22,6 +23,7 @@ PRIVATE
 
 if(NOT MSVC)
   if(MP_HIDE_SYMBOLS)
+    message(FATAL_ERROR "++++ MP_HIDE_SYMBOLS = ${MP_HIDE_SYMBOLS}")
     target_compile_options(microprofile
     PRIVATE
       -fvisibility=hidden
