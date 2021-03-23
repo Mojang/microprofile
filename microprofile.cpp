@@ -28,18 +28,17 @@
 namespace {
 	inline uint64_t hashStr( const char* str )
 	{
-		if (str == nullptr || *str == '\0')
-		{
-			return 0;
-		}
 		uint64_t hash = 5381;
-		uint64_t c = (uint64_t)(*str);
-		do
+		if (str != nullptr && *str == '\0')
 		{
-			hash = (hash << 5) - hash + (c + ((c >= 'A' && c <= 'Z') * 32));
-			str++;
-			c = (uint64_t)(*str);
-		} while ( c != '\0' );
+			uint64_t c = (uint64_t)(*str);
+			do
+			{
+				hash = (hash << 5) - hash + (c + ((c >= 'A' && c <= 'Z') * 32));
+				str++;
+				c = (uint64_t)(*str);
+			} while ( c != '\0' );
+		}
 		return hash;
 	}
 }
