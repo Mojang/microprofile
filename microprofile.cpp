@@ -2,13 +2,6 @@
 #include "microprofile.h"
 #if MICROPROFILE_ENABLED
 
-#	if defined(_MSC_VER)
-#		pragma optimize("",off)
-#	elif defined(__clang__)
-#		pragma clang optimize off
-#	endif
-
-
 #include <thread>
 #include <mutex>
 #include <atomic>
