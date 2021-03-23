@@ -2,6 +2,11 @@
 #include "microprofile.h"
 #if MICROPROFILE_ENABLED
 
+#	if defined(_MSC_VER)
+#		pragma optimize("",off)
+#	elif defined(__clang__)
+#		pragma clang optimize off
+#	endif
 
 
 #include <thread>
@@ -28,16 +33,20 @@
 namespace {
 	inline uint64_t hashStr( const char* str )
 	{
-		uint64_t hash = 5381;
-		if (str != nullptr && *str == '\0')
+		uint64_t hash = 0;
+		if (str != nullptr)
 		{
-			uint64_t c = (uint64_t)(*str);
-			do
+			hash = 5381;
+			if (*str != '\0')
 			{
-				hash = (hash << 5) - hash + (c + ((c >= 'A' && c <= 'Z') * 32));
-				str++;
-				c = (uint64_t)(*str);
-			} while ( c != '\0' );
+				uint64_t c = (uint64_t)(*str);
+				do
+				{
+					hash = (hash << 5) - hash + (c + ((c >= 'A' && c <= 'Z') * 32));
+					str++;
+					c = (uint64_t)(*str);
+				} while (c != '\0');
+			}
 		}
 		return hash;
 	}
