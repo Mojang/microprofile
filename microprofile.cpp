@@ -2,8 +2,6 @@
 #include "microprofile.h"
 #if MICROPROFILE_ENABLED
 
-
-
 #include <thread>
 #include <mutex>
 #include <atomic>
@@ -24,6 +22,29 @@
 
 #include "Core/Debug/DebugUtils.h"
 #include "Platform/Threading/ThreadUtil.h"
+
+namespace {
+	inline uint64_t hashStr( const char* str )
+	{
+		uint64_t hash = 0;
+		if (str != nullptr)
+		{
+			hash = 5381;
+			if (*str != '\0')
+			{
+				uint64_t c = (uint64_t)(*str);
+				do
+				{
+					hash = (hash << 5) - hash + (c + ((c >= 'A' && c <= 'Z') * 32));
+					str++;
+					c = (uint64_t)(*str);
+				} while (c != '\0');
+			}
+		}
+		return hash;
+	}
+}
+
 
 #define MICROPROFILE_MAX_COUNTERS 512
 #define MICROPROFILE_MAX_COUNTER_NAME_CHARS (MICROPROFILE_MAX_COUNTERS*16)
@@ -437,6 +458,7 @@ struct MicroProfileCategory
 struct MicroProfileGroupInfo
 {
 	char pName[MICROPROFILE_NAME_MAX_LEN];
+	uint64_t nNameHash;
 	uint32_t nNameLen;
 	uint32_t nGroupIndex;
 	uint32_t nNumTimers;
@@ -449,6 +471,7 @@ struct MicroProfileGroupInfo
 struct MicroProfileTimerInfo
 {
 	MicroProfileToken nToken;
+	uint64_t nNameHash;
 	uint32_t nTimerIndex;
 	uint32_t nGroupIndex;
 	char pName[MICROPROFILE_NAME_MAX_LEN];
@@ -1894,10 +1917,12 @@ void MicroProfileInitThreadLog()
 
 MicroProfileToken MicroProfileFindTokenInternal(const char* pGroup, const char* pName, uint32_t& searchFrom)
 {
+	uint64_t const groupKey = hashStr(pGroup);
+	uint64_t const nameKey = hashStr(pName);
 	uint32_t searchTo = S.nTotalTimers.load(std::memory_order_acquire);
 	for (; searchFrom < searchTo; ++searchFrom)
 	{
-		if (!MP_STRCASECMP(pName, S.TimerInfo[searchFrom].pName) && !MP_STRCASECMP(pGroup, S.GroupInfo[S.TimerToGroup[searchFrom]].pName))
+		if (nameKey == S.TimerInfo[searchFrom].nNameHash && groupKey == S.GroupInfo[S.TimerToGroup[searchFrom]].nNameHash)
 		{
 			return S.TimerInfo[searchFrom].nToken;
 		}
@@ -1916,9 +1941,10 @@ MicroProfileToken MicroProfileFindToken(const char* pGroup, const char* pName) {
 
 uint16_t MicroProfileGetGroup(const char* pGroup, MicroProfileTokenType Type)
 {
+	uint64_t const groupKey = hashStr(pGroup);
 	for(uint32_t i = 0; i < S.nGroupCount; ++i)
 	{
-		if(!MP_STRCASECMP(pGroup, S.GroupInfo[i].pName))
+		if (groupKey == S.GroupInfo[i].nNameHash)
 		{
 			return i;
 		}
@@ -1929,6 +1955,7 @@ uint16_t MicroProfileGetGroup(const char* pGroup, MicroProfileTokenType Type)
 		nLen = MICROPROFILE_NAME_MAX_LEN-1;
 	memcpy(&S.GroupInfo[S.nGroupCount].pName[0], pGroup, nLen);
 	S.GroupInfo[S.nGroupCount].pName[nLen] = '\0';
+	S.GroupInfo[S.nGroupCount].nNameHash = hashStr(S.GroupInfo[S.nGroupCount].pName);
 	S.GroupInfo[S.nGroupCount].nNameLen = nLen;
 	S.GroupInfo[S.nGroupCount].nNumTimers = 0;
 	S.GroupInfo[S.nGroupCount].nGroupIndex = S.nGroupCount;
@@ -2018,9 +2045,10 @@ MicroProfileToken MicroProfileGetToken(const char* pGroup, const char* pName, ui
 	uint32_t nLen = (uint32_t)strlen(pName);
 	if(nLen > MICROPROFILE_NAME_MAX_LEN-1)
 		nLen = MICROPROFILE_NAME_MAX_LEN-1;
-	memcpy(&S.TimerInfo[nTimerIndex].pName, pName, nLen);
+	memcpy(&S.TimerInfo[nTimerIndex].pName[0], pName, nLen);
 	snprintf(&S.TimerInfo[nTimerIndex].pNameExt[0], sizeof(S.TimerInfo[nTimerIndex].pNameExt)-1, "%s %s", S.GroupInfo[nGroupIndex].pName, pName);
 	S.TimerInfo[nTimerIndex].pName[nLen] = '\0';
+	S.TimerInfo[nTimerIndex].nNameHash = hashStr(S.TimerInfo[nTimerIndex].pName);
 	S.TimerInfo[nTimerIndex].nNameLen = nLen;
 	S.TimerInfo[nTimerIndex].nColor = nColor&0xffffff;
 	S.TimerInfo[nTimerIndex].nGroupIndex = nGroupIndex;
