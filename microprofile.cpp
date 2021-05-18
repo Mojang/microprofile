@@ -21,6 +21,7 @@
 #endif
 
 #include "Core/Debug/DebugUtils.h"
+#include "Core/Memory/MemoryTracker.h"
 #include "Platform/Threading/ThreadUtil.h"
 
 namespace {
@@ -1729,6 +1730,7 @@ MicroProfileThreadLog* MicroProfileCreateThreadLog(const char* pName)
 
 void MicroProfileOnThreadCreate(const char* pThreadName)
 {
+	ScopedMemoryTracking(Memory::MemoryCategory::Debug);
 	char Buffer[64];
 	g_bUseLock = true;
 	MicroProfileInit();
