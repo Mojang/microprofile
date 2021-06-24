@@ -20,6 +20,11 @@
 #include <inttypes.h>
 #endif
 
+#if defined(MCPE_PLATFORM_NX)
+#include <nn/time/time_Api.h>
+#include <nn/time/time_StandardUserSystemClock.h>
+#endif
+
 #include "Core/Debug/DebugUtils.h"
 #include "Core/Memory/MemoryTracker.h"
 #include "Platform/Threading/ThreadUtil.h"
@@ -4214,7 +4219,12 @@ void MicroProfileDumpHtml(MicroProfileWriteCallback CB, void* Handle, uint64_t n
 	float fAggregateMs = fToMsCPU * (nTicks - S.nAggregateFlipTick);
 	MicroProfilePrintf(CB, Handle, "S.DumpHost = '%s';\n", pHost ? pHost : "");
 	time_t CaptureTime;
+#if defined(MCPE_PLATFORM_NX)
+	nn::time::SystemClockTraits::time_point tp = nn::time::StandardUserSystemClock::now();
+	CaptureTime = nn::time::StandardUserSystemClock::to_time_t(tp);
+#else
 	time(&CaptureTime);
+#endif
 	MicroProfilePrintf(CB, Handle, "S.DumpUtcCaptureTime = %ld;\n", CaptureTime);
 	MicroProfilePrintf(CB, Handle, "S.AggregateInfo = {'Frames':%d, 'Time':%f};\n", S.nAggregateFrames, fAggregateMs);
 
